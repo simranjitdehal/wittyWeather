@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Witty Weather</title>
+  <style>
+    /* Reset */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background: linear-gradient(to right, #74ebd5, #ACB6E5);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 20px;
+      color: #333;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+      color: #fff;
+      text-shadow: 1px 1px 4px rgba(0,0,0,0.3);
+    }
+
+    .search {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap; /* allows stacking on smaller screens */
+      width: 100%;
+      max-width: 500px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 10px 15px;
+      border-radius: 8px;
+      border: none;
+      outline: none;
+      font-size: 16px;
+      min-width: 200px;
+    }
+
+    button {
+      padding: 10px 20px;
+      background-color: #4A90E2;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #357ABD;
+    }
+
+    .weather-container {
+      background: rgba(255, 255, 255, 0.85);
+      border-radius: 15px;
+      padding: 20px 30px;
+      width: 100%;
+      max-width: 500px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+      margin-top: 20px;
+      transition: transform 0.3s ease;
+    }
+
+    .weather-container:hover {
+      transform: scale(1.02);
+    }
+
+    .metric {
+      margin: 10px 0;
+    }
+
+    .metric strong {
+      color: #4A90E2;
+    }
+
+    .joke {
+      margin-top: 5px;
+      font-style: italic;
+      color: #555;
+    }
+
+    @media (max-width: 600px) {
+      .search {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>🌤️ Witty Weather</h1>
+
+  <div class="search">
+    <input type="text" id="city" placeholder="Enter city">
+    <button onclick="getWeather()">Get Weather</button>
+  </div>
+
+  <div id="result" class="weather-container" style="display: none;">
+    <!-- Weather info will appear here -->
+  </div>
+
+  <script>
+    function getWeather() {
+      const city = document.getElementById("city").value.trim();
+      if (!city) return alert("Please enter a city name!");
+
+      fetch(`http://127.0.0.1:5000/get_weather?city=${city}`)
+        .then(response => response.json())
+        .then(data => {
+          const container = document.getElementById("result");
+          container.style.display = "block";
+          container.innerHTML = `
+            <div class="metric"><strong>City:</strong> ${data.city}</div>
+            <div class="metric"><strong>Weather:</strong> ${data.description}</div>
+            
+            <div class="metric"><strong>Temperature:</strong> ${data.temperature}°C</div>
+            <div class="joke">${data.funny_temperature}</div>
+
+            <div class="metric"><strong>Humidity:</strong> ${data.humidity}%</div>
+            <div class="joke">${data.funny_humidity}</div>
+
+            <div class="metric"><strong>Wind Speed:</strong> ${data.wind_speed} km/h</div>
+            <div class="joke">${data.funny_wind}</div>
+
+            <div class="metric"><strong>Cloudiness:</strong> ${data.cloudiness}%</div>
+            <div class="joke">${data.funny_clouds}</div>
+          `;
+        })
+        .catch(error => {
+          console.error("Error:", error);
+          alert("Failed to fetch weather data. Make sure your backend is running!");
+        });
+    }
+  </script>
+</body>
+</html>
