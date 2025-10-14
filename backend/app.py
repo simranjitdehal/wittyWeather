@@ -1,104 +1,60 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template, redirect, session, url_for
 import requests
 from flask_cors import CORS
 from config import OPENWEATHER_API_KEY
 from jokes import temp_jokes, wind_jokes, humidity_jokes, cloud_jokes
 import random
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, verify_jwt_in_request
+from flask_jwt_extended.exceptions import NoAuthorizationError
+from dotenv import load_dotenv
+import os
+from routes.auth import auth_bp
+from routes.weather import weather_bp
+from datetime import timedelta
+from database import db
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "http://127.0.0.1:8000"}}, supports_credentials=True)
+# CORS(app)
+load_dotenv
 
-# ------------------------
-# Helper function to pick a random joke based on value
-# ------------------------
-def choose_joke(value, jokes_dict):
-    for key in jokes_dict:
-        if key.startswith("<") and value < int(key[1:]):
-            return random.choice(jokes_dict[key])
-        elif "-" in key:
-            low, high = map(int, key.split("-"))
-            if low <= value <= high:
-                return random.choice(jokes_dict[key])
-        elif key.startswith(">") and value > int(key[1:]):
-            return random.choice(jokes_dict[key])
-    # fallback if no match
-    return "😎 Weather vibes in your city!"
+# Database config from .env
+db_user = os.getenv("DB_USER")
+db_password = os.getenv("DB_PASSWORD")
+db_host = os.getenv("DB_HOST")
 
-# ------------------------
-# Generate full humorous comment
-# ------------------------
-def generate_humor(weather_data):
-    temp_joke = choose_joke(weather_data["temp"], temp_jokes).format(
-        city=weather_data["city"], temp=weather_data["temp"]
-    )
-    humidity_joke = choose_joke(weather_data["humidity"], humidity_jokes).format(
-        city=weather_data["city"], humidity=weather_data["humidity"]
-    )
-    wind_joke = choose_joke(weather_data["wind_speed"], wind_jokes).format(
-        city=weather_data["city"], wind_speed=weather_data["wind_speed"]
-    )
-    cloud_joke = choose_joke(weather_data.get("clouds", 0), cloud_jokes).format(
-        city=weather_data["city"], cloudiness=weather_data.get("clouds", 0)
-    )
+db_name = os.getenv("DB_NAME")
 
-    # Return as a list or dictionary if you want separate fields
-    return {
-        "temperature": temp_joke,
-        "humidity": humidity_joke,
-        "wind": wind_joke,
-        "clouds": cloud_joke
-    }
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("SQLALCHEMY_DATABASE_URI")
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db.init_app(app)
+
+app.config["JWT_SECRET_KEY"] = "JWT_SECRET_KEY"
 
 
+jwt = JWTManager(app)
+
+app.register_blueprint(auth_bp)
+app.register_blueprint(weather_bp)
+
+
+with app.app_context():
+    db.create_all()
+    print("✅ Users table created!")
 
 # ------------------------
 # Flask routes
 # ------------------------
 @app.route("/")
+@jwt_required
 def home():
-    return "WittyWeather backend is running!"
-
-@app.route("/get_weather", methods=["GET"])
-def get_weather():
-    city = request.args.get("city")
-    if not city:
-        return jsonify({"error": "Please provide a city name"}), 400
-
-    # Call OpenWeather API
-    url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={OPENWEATHER_API_KEY}&units=metric"
-    response = requests.get(url)
-    
-    if response.status_code != 200:
-        return jsonify({"error": "City not found"}), 404
-    
-    data = response.json()
-    
-    weather_info = {
-        "city": city,
-        "temp": data["main"]["temp"],
-        "description": data["weather"][0]["description"],
-        "humidity": data["main"]["humidity"],
-        "wind_speed": data["wind"]["speed"],
-        "feels_like": data["main"]["feels_like"],
-        "clouds": data["clouds"]["all"]
-    }
-
-    # Generate humor
-    funny_comments = generate_humor(weather_info)
-
-    return jsonify({
-    "city": city,
-    "temperature": weather_info["temp"],
-    "description": weather_info["description"],
-    "humidity": weather_info["humidity"],
-    "wind_speed": weather_info["wind_speed"],
-    "feels_like": weather_info["feels_like"],
-    "funny_temperature": funny_comments["temperature"],
-    "funny_humidity": funny_comments["humidity"],
-    "funny_wind": funny_comments["wind"],
-    "cloudiness": weather_info["clouds"],
-    "funny_clouds": funny_comments["clouds"]
-})
+    try:
+        verify_jwt_in_request()
+        current_user = get_jwt_identity()
+        return render_template("index.html", username=current_user)
+    except NoAuthorizationError:
+        return redirect(url_for("login"))
 
 if __name__ == "__main__":
     app.run(debug=True)
