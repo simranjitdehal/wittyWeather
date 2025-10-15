@@ -12,6 +12,8 @@ from routes.auth import auth_bp
 from routes.weather import weather_bp
 from datetime import timedelta
 from database import db
+from authlib.integrations.flask_client import OAuth
+
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "http://127.0.0.1:8000"}}, supports_credentials=True)
@@ -58,3 +60,6 @@ def home():
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+#add reddis
+#dockerize this app, what is kernal? VM ware
